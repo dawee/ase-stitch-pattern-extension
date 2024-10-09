@@ -1,0 +1,13 @@
+{
+  "Lua.diagnostics.globals": [
+    "app",
+    "print",
+    "icons",
+    "Dialog",
+    "Image",
+    "ipairs",
+    "Point",
+    "Rectangle"
+  ],
+  "Lua.runtime.version": "Lua 5.3"
+}
