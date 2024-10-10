@@ -22,6 +22,7 @@ local LIGHT_BORDER_WIDTH = 1
 local DARK_BORDER_WIDTH = 2
 
 local GRID_CELL_SIZE = 10
+local GRID_MARGIN = 5
 
 local MARGIN_WIDTH = 160
 
@@ -117,9 +118,26 @@ local function writePage(filePath, inputImage)
   local pageHeight = inputImage.height + MARGIN_WIDTH * 2
   local pageImage = Image(pageWidth, pageHeight)
 
+  local gridCols = app.image.width // GRID_CELL_SIZE
+  local gridRows = app.image.height // GRID_CELL_SIZE
+
   pageImage:clear(Rectangle(0, 0, pageWidth, pageHeight), COLOR_WHITE)
   pageImage:clear(Rectangle(MARGIN_WIDTH, MARGIN_WIDTH, inputImage.width + DARK_BORDER_WIDTH, inputImage.height + DARK_BORDER_WIDTH), COLOR_DARK_GREY)
-  pageImage:drawImage(font.textImage("10", COLOR_BLACK), Point(MARGIN_WIDTH + TILE_SIZE * 10 - 8, MARGIN_WIDTH - 20))
+
+  for i = 1, gridCols do
+    local textImg = font.textImage(tostring(i * GRID_CELL_SIZE), COLOR_BLACK)
+
+    pageImage:drawImage(textImg, Point(MARGIN_WIDTH + TILE_SIZE * i * GRID_CELL_SIZE - textImg.width / 2, MARGIN_WIDTH - textImg.height - GRID_MARGIN))
+    pageImage:drawImage(textImg, Point(MARGIN_WIDTH + TILE_SIZE * i * GRID_CELL_SIZE - textImg.width / 2, MARGIN_WIDTH + inputImage.height + GRID_MARGIN))
+  end
+
+  for i = 1, gridRows do
+    local textImg = font.textImage(tostring(i * GRID_CELL_SIZE), COLOR_BLACK)
+
+    pageImage:drawImage(textImg, Point(MARGIN_WIDTH - textImg.width - GRID_MARGIN, MARGIN_WIDTH + TILE_SIZE * i * GRID_CELL_SIZE - textImg.height / 2))
+    pageImage:drawImage(textImg, Point(MARGIN_WIDTH + inputImage.width + GRID_MARGIN, MARGIN_WIDTH + TILE_SIZE * i * GRID_CELL_SIZE - textImg.height / 2))
+  end
+
   pageImage:drawImage(inputImage, Point(MARGIN_WIDTH, MARGIN_WIDTH))
   pageImage:saveAs(filePath)
 end
