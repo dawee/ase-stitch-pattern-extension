@@ -187,7 +187,7 @@ local function exportColoredIcons(filePath)
   writePage(filePath, coloredIconsImage)
 end
 
-local function export_all()
+local function exportAll()
   if dlg.data.outputFilePath ~= nil then
     local base_name = app.fs.filePathAndTitle(dlg.data.outputFilePath)
       :gsub(SUFFIX_ICONS_ONLY, '')
@@ -209,9 +209,9 @@ dlg:file {
 
 dlg:button{
   id= "export",
-  text= "Export",
+  text= "Export as stitch pattern",
   onclick = function ()
-    export_all()
+    exportAll()
     dlg:close()
   end
 }
