@@ -1,28 +1,8 @@
 local rgbToHsl = require('lib.rgb_to_hsl')
 local memoize = require('lib.memoize')
 
-local icons = {
-  require("icons/1.png"),
-  require("icons/2.png"),
-  require("icons/3.png"),
-  require("icons/4.png"),
-  require("icons/5.png"),
-  require("icons/6.png"),
-  require("icons/7.png"),
-  require("icons/8.png"),
-  require("icons/9.png"),
-  require("icons/10.png"),
-  require("icons/11.png"),
-  require("icons/12.png"),
-  require("icons/13.png"),
-  require("icons/14.png"),
-  require("icons/15.png"),
-  require("icons/16.png"),
-  require("icons/17.png"),
-  require("icons/18.png"),
-  require("icons/19.png"),
-  require("icons/20.png"),
-}
+local icons = require('aspe.icons')
+local font = require('aspe.font')
 
 local dlg = Dialog {
   title = "Export as stitch pattern",
@@ -42,6 +22,8 @@ local LIGHT_BORDER_WIDTH = 1
 local DARK_BORDER_WIDTH = 2
 
 local GRID_CELL_SIZE = 10
+
+local MARGIN_WIDTH = 160
 
 local function _createIconImage(icon_index, color)
   local icon = icons[icon_index]
@@ -103,6 +85,8 @@ local function tiles()
         colorsMapping[tile.pixelValue] = uniqueColorsCount
       end
 
+      tile.xend = pixel.x == app.image.width
+      tile.yend = pixel.y == app.image.height
       tile.x = pixel.x
       tile.y = pixel.y
       tile.iconIndex = colorsMapping[tile.pixelValue]
@@ -128,6 +112,19 @@ local function tiles()
 end
 
 
+local function writePage(filePath, inputImage)
+  local pageWidth = inputImage.width + MARGIN_WIDTH * 2
+  local pageHeight = inputImage.height + MARGIN_WIDTH * 2
+  local pageImage = Image(pageWidth, pageHeight)
+
+  pageImage:clear(Rectangle(0, 0, pageWidth, pageHeight), COLOR_WHITE)
+  pageImage:clear(Rectangle(MARGIN_WIDTH, MARGIN_WIDTH, inputImage.width + DARK_BORDER_WIDTH, inputImage.height + DARK_BORDER_WIDTH), COLOR_DARK_GREY)
+  pageImage:drawImage(font.textImage("10", COLOR_BLACK), Point(MARGIN_WIDTH + TILE_SIZE * 10 - 8, MARGIN_WIDTH - 20))
+  pageImage:drawImage(inputImage, Point(MARGIN_WIDTH, MARGIN_WIDTH))
+  pageImage:saveAs(filePath)
+end
+
+
 local function exportIconsOnly(filePath)
   local iconsOnlyImage = Image(app.image.width * TILE_SIZE, app.image.height * TILE_SIZE)
 
@@ -141,21 +138,21 @@ local function exportIconsOnly(filePath)
     end
   end
 
-  iconsOnlyImage:saveAs(filePath)
+  writePage(filePath, iconsOnlyImage)
 end
 
 local function exportColoredIcons(filePath)
-  local iconsOnlyImage = Image(app.image.width * TILE_SIZE, app.image.height * TILE_SIZE)
+  local coloredIconsImage = Image(app.image.width * TILE_SIZE, app.image.height * TILE_SIZE)
 
   for tile in tiles() do
     if app.pixelColor.rgbaA(tile.pixelValue) ~= 0 then
-      iconsOnlyImage:drawImage(unicolorImage(tile.pixelValue), Point(tile.x * TILE_SIZE, tile.y * TILE_SIZE))
+      coloredIconsImage:drawImage(unicolorImage(tile.pixelValue), Point(tile.x * TILE_SIZE, tile.y * TILE_SIZE))
     else
-      iconsOnlyImage:drawImage(unicolorImage(COLOR_WHITE), Point(tile.x * TILE_SIZE, tile.y * TILE_SIZE))
+      coloredIconsImage:drawImage(unicolorImage(COLOR_WHITE), Point(tile.x * TILE_SIZE, tile.y * TILE_SIZE))
     end
 
-    iconsOnlyImage:drawImage(leftBorderImage(tile.leftBorderWidth, tile.leftBorderColor), Point(tile.x * TILE_SIZE, tile.y * TILE_SIZE))
-    iconsOnlyImage:drawImage(topBorderImage(tile.topBorderWidth, tile.topBorderColor), Point(tile.x * TILE_SIZE, tile.y * TILE_SIZE))
+    coloredIconsImage:drawImage(leftBorderImage(tile.leftBorderWidth, tile.leftBorderColor), Point(tile.x * TILE_SIZE, tile.y * TILE_SIZE))
+    coloredIconsImage:drawImage(topBorderImage(tile.topBorderWidth, tile.topBorderColor), Point(tile.x * TILE_SIZE, tile.y * TILE_SIZE))
 
     if app.pixelColor.rgbaA(tile.pixelValue) ~= 0 then
       local h, s, l = rgbToHsl(app.pixelColor.rgbaR(tile.pixelValue), app.pixelColor.rgbaG(tile.pixelValue), app.pixelColor.rgbaB(tile.pixelValue), app.pixelColor.rgbaA(tile.pixelValue))
@@ -164,13 +161,12 @@ local function exportColoredIcons(filePath)
       if l < 128 then
         iconColor = COLOR_WHITE
       end
-      
 
-      iconsOnlyImage:drawImage(iconImage(tile.iconIndex, iconColor), Point(tile.x * TILE_SIZE, tile.y * TILE_SIZE))
+      coloredIconsImage:drawImage(iconImage(tile.iconIndex, iconColor), Point(tile.x * TILE_SIZE, tile.y * TILE_SIZE))
     end
   end
 
-  iconsOnlyImage:saveAs(filePath)
+  writePage(filePath, coloredIconsImage)
 end
 
 local function export_all()
