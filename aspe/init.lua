@@ -1,8 +1,8 @@
-local rgbToHsl = require('lib.rgb_to_hsl')
 local memoize = require('lib.memoize')
 
 local icons = require('aspe.icons')
 local font = require('aspe.font')
+local colors = require('aspe.colors')
 
 local dlg = Dialog {
   title = "Export as stitch pattern",
@@ -12,11 +12,6 @@ local ICON_SIZE = 16
 local TILE_SIZE = 16
 local SUFFIX_ICONS_ONLY = '_icons_only'
 local SUFFIX_COLORED_ICONS = '_colored_icons'
-
-local COLOR_WHITE = app.pixelColor.rgba(255, 255, 255)
-local COLOR_BLACK = app.pixelColor.rgba(0, 0, 0)
-local COLOR_LIGHT_GREY = app.pixelColor.rgba(128, 128, 128)
-local COLOR_DARK_GREY = app.pixelColor.rgba(64, 64, 64)
 
 local LIGHT_BORDER_WIDTH = 1
 local DARK_BORDER_WIDTH = 2
@@ -41,13 +36,6 @@ local function _createIconImage(icon_index, color)
   return icon_image
 end
 
-local function _createUnicolorImage(color)
-  local image = Image { width = TILE_SIZE, height = TILE_SIZE }
-
-  image:clear(Rectangle(0, 0, TILE_SIZE, TILE_SIZE), color)
-  return image
-end
-
 local function _createLeftBorderImage(width, color)
   local image = Image { width = width, height = TILE_SIZE }
 
@@ -63,7 +51,6 @@ local function _createTopBorderImage(width, color)
 end
 
 
-local unicolorImage = memoize.memoize(_createUnicolorImage)
 local iconImage = memoize.memoize(_createIconImage)
 local leftBorderImage = memoize.memoize(_createLeftBorderImage)
 local topBorderImage = memoize.memoize(_createTopBorderImage)
@@ -75,35 +62,46 @@ local function tiles()
   local next = app.image:pixels()
 
   return function ()
-    local pixel = next()
+    local pixelHandle = next()
 
-    if pixel ~= nil then
+    if pixelHandle ~= nil then
       local tile = {}
-      tile.pixelValue = pixel()
+      local pixel = pixelHandle()
+      local originalColor = colors.pixelToColor(pixel)
 
-      if colorsMapping[tile.pixelValue] == nil then
+      if colorsMapping[pixel] == nil and originalColor.alpha > 0 then
         uniqueColorsCount = uniqueColorsCount + 1
-        colorsMapping[tile.pixelValue] = uniqueColorsCount
+        colorsMapping[pixel] = {
+          iconIndex = uniqueColorsCount,
+          stitch = colors.findClosestStitchToPixel(pixel)
+        }
       end
 
-      tile.xend = pixel.x == app.image.width
-      tile.yend = pixel.y == app.image.height
-      tile.x = pixel.x
-      tile.y = pixel.y
-      tile.iconIndex = colorsMapping[tile.pixelValue]
+      if colorsMapping[pixel] ~= nil then
+        tile.color = colorsMapping[pixel].stitch.color
+        tile.iconIndex = colorsMapping[pixel].iconIndex
+      else
+        tile.color = colors.WHITE
+        tile.iconIndex = nil
+      end
+
+      tile.xend = pixelHandle.x == app.image.width
+      tile.yend = pixelHandle.y == app.image.height
+      tile.x = pixelHandle.x
+      tile.y = pixelHandle.y
       tile.leftBorderWidth = LIGHT_BORDER_WIDTH
-      tile.leftBorderColor = COLOR_LIGHT_GREY
+      tile.leftBorderColor = colors.LIGHT_GREY
       tile.topBorderWidth = LIGHT_BORDER_WIDTH
-      tile.topBorderColor = COLOR_LIGHT_GREY
+      tile.topBorderColor = colors.LIGHT_GREY
 
-      if pixel.x % GRID_CELL_SIZE == 0 then
+      if pixelHandle.x % GRID_CELL_SIZE == 0 then
         tile.leftBorderWidth = DARK_BORDER_WIDTH
-        tile.leftBorderColor = COLOR_DARK_GREY
+        tile.leftBorderColor = colors.DARK_GREY
       end
 
-      if pixel.y % GRID_CELL_SIZE == 0 then
+      if pixelHandle.y % GRID_CELL_SIZE == 0 then
         tile.topBorderWidth = DARK_BORDER_WIDTH
-        tile.topBorderColor = COLOR_DARK_GREY
+        tile.topBorderColor = colors.DARK_GREY
       end
 
       return tile
@@ -121,18 +119,18 @@ local function writePage(filePath, inputImage)
   local gridCols = app.image.width // GRID_CELL_SIZE
   local gridRows = app.image.height // GRID_CELL_SIZE
 
-  pageImage:clear(Rectangle(0, 0, pageWidth, pageHeight), COLOR_WHITE)
-  pageImage:clear(Rectangle(MARGIN_WIDTH, MARGIN_WIDTH, inputImage.width + DARK_BORDER_WIDTH, inputImage.height + DARK_BORDER_WIDTH), COLOR_DARK_GREY)
+  pageImage:clear(Rectangle(0, 0, pageWidth, pageHeight), colors.WHITE)
+  pageImage:clear(Rectangle(MARGIN_WIDTH, MARGIN_WIDTH, inputImage.width + DARK_BORDER_WIDTH, inputImage.height + DARK_BORDER_WIDTH), colors.DARK_GREY)
 
   for i = 1, gridCols do
-    local textImg = font.textImage(tostring(i * GRID_CELL_SIZE), COLOR_BLACK)
+    local textImg = font.textImage(tostring(i * GRID_CELL_SIZE), colors.BLACK)
 
     pageImage:drawImage(textImg, Point(MARGIN_WIDTH + TILE_SIZE * i * GRID_CELL_SIZE - textImg.width / 2, MARGIN_WIDTH - textImg.height - GRID_MARGIN))
     pageImage:drawImage(textImg, Point(MARGIN_WIDTH + TILE_SIZE * i * GRID_CELL_SIZE - textImg.width / 2, MARGIN_WIDTH + inputImage.height + GRID_MARGIN))
   end
 
   for i = 1, gridRows do
-    local textImg = font.textImage(tostring(i * GRID_CELL_SIZE), COLOR_BLACK)
+    local textImg = font.textImage(tostring(i * GRID_CELL_SIZE), colors.BLACK)
 
     pageImage:drawImage(textImg, Point(MARGIN_WIDTH - textImg.width - GRID_MARGIN, MARGIN_WIDTH + TILE_SIZE * i * GRID_CELL_SIZE - textImg.height / 2))
     pageImage:drawImage(textImg, Point(MARGIN_WIDTH + inputImage.width + GRID_MARGIN, MARGIN_WIDTH + TILE_SIZE * i * GRID_CELL_SIZE - textImg.height / 2))
@@ -145,14 +143,15 @@ end
 
 local function exportIconsOnly(filePath)
   local iconsOnlyImage = Image(app.image.width * TILE_SIZE, app.image.height * TILE_SIZE)
+  
+  iconsOnlyImage:clear(Rectangle(0, 0, app.image.width * TILE_SIZE, app.image.height * TILE_SIZE), colors.WHITE)
 
   for tile in tiles() do
-    iconsOnlyImage:drawImage(unicolorImage(COLOR_WHITE), Point(tile.x * TILE_SIZE, tile.y * TILE_SIZE))
     iconsOnlyImage:drawImage(leftBorderImage(tile.leftBorderWidth, tile.leftBorderColor), Point(tile.x * TILE_SIZE, tile.y * TILE_SIZE))
     iconsOnlyImage:drawImage(topBorderImage(tile.topBorderWidth, tile.topBorderColor), Point(tile.x * TILE_SIZE, tile.y * TILE_SIZE))
 
-    if app.pixelColor.rgbaA(tile.pixelValue) ~= 0 then
-      iconsOnlyImage:drawImage(iconImage(tile.iconIndex, COLOR_BLACK), Point(tile.x * TILE_SIZE, tile.y * TILE_SIZE))
+    if tile.iconIndex ~= nil then
+      iconsOnlyImage:drawImage(iconImage(tile.iconIndex, colors.BLACK), Point(tile.x * TILE_SIZE, tile.y * TILE_SIZE))
     end
   end
 
@@ -162,22 +161,21 @@ end
 local function exportColoredIcons(filePath)
   local coloredIconsImage = Image(app.image.width * TILE_SIZE, app.image.height * TILE_SIZE)
 
+  coloredIconsImage:clear(Rectangle(0, 0, app.image.width * TILE_SIZE, app.image.height * TILE_SIZE), colors.WHITE)
+
   for tile in tiles() do
-    if app.pixelColor.rgbaA(tile.pixelValue) ~= 0 then
-      coloredIconsImage:drawImage(unicolorImage(tile.pixelValue), Point(tile.x * TILE_SIZE, tile.y * TILE_SIZE))
-    else
-      coloredIconsImage:drawImage(unicolorImage(COLOR_WHITE), Point(tile.x * TILE_SIZE, tile.y * TILE_SIZE))
+    if tile.iconIndex ~= nil then
+      coloredIconsImage:clear(Rectangle(tile.x * TILE_SIZE, tile.y * TILE_SIZE, TILE_SIZE, TILE_SIZE), tile.color)
     end
 
     coloredIconsImage:drawImage(leftBorderImage(tile.leftBorderWidth, tile.leftBorderColor), Point(tile.x * TILE_SIZE, tile.y * TILE_SIZE))
     coloredIconsImage:drawImage(topBorderImage(tile.topBorderWidth, tile.topBorderColor), Point(tile.x * TILE_SIZE, tile.y * TILE_SIZE))
 
-    if app.pixelColor.rgbaA(tile.pixelValue) ~= 0 then
-      local h, s, l = rgbToHsl(app.pixelColor.rgbaR(tile.pixelValue), app.pixelColor.rgbaG(tile.pixelValue), app.pixelColor.rgbaB(tile.pixelValue), app.pixelColor.rgbaA(tile.pixelValue))
-      local iconColor = COLOR_BLACK
+    if tile.iconIndex ~= nil then
+      local iconColor = colors.BLACK
 
-      if l < 128 then
-        iconColor = COLOR_WHITE
+      if tile.color.lightness < 0.5 then
+        iconColor = colors.WHITE
       end
 
       coloredIconsImage:drawImage(iconImage(tile.iconIndex, iconColor), Point(tile.x * TILE_SIZE, tile.y * TILE_SIZE))

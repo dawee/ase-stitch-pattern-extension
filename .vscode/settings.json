@@ -7,7 +7,8 @@
     "Image",
     "ipairs",
     "Point",
-    "Rectangle"
+    "Rectangle",
+    "Color"
   ],
   "Lua.runtime.version": "Lua 5.3"
 }

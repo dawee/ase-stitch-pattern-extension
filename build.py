@@ -56,7 +56,7 @@ class ImageModule:
 
 class FontModule(ImageModule):
     def __init__(self, file_name, char, size):
-        self.file_name = f'file_name@{char},{size}'
+        self.file_name = f'{file_name}@{char},{size}'
         self.base_file_name = file_name
         self.char = char
         self.size = int(size)
