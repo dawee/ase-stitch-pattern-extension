@@ -3,11 +3,6 @@ local stitches = require('aspe.stitches')
 
 local colors = {}
 
-colors.WHITE = app.pixelColor.rgba(255, 255, 255)
-colors.BLACK = app.pixelColor.rgba(0, 0, 0)
-colors.LIGHT_GREY = app.pixelColor.rgba(128, 128, 128)
-colors.DARK_GREY = app.pixelColor.rgba(64, 64, 64)
-
 colors.pixelToColor = memoize.memoize(
   function (pixel)
     return Color {
@@ -18,6 +13,13 @@ colors.pixelToColor = memoize.memoize(
     }
   end
 )
+
+colors.RED = colors.pixelToColor(app.pixelColor.rgba(255, 0, 0))
+colors.WHITE = colors.pixelToColor(app.pixelColor.rgba(255, 255, 255))
+colors.BLACK = colors.pixelToColor(app.pixelColor.rgba(0, 0, 0))
+colors.LIGHT_GREY = colors.pixelToColor(app.pixelColor.rgba(128, 128, 128))
+colors.DARK_GREY = colors.pixelToColor(app.pixelColor.rgba(64, 64, 64))
+
 
 function colors.distance(colorA, colorB)
   return math.sqrt((colorB.red - colorA.red) ^ 2 + (colorB.green - colorA.green) ^ 2  + (colorB.blue - colorA.blue) ^ 2)

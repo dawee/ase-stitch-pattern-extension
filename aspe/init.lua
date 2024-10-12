@@ -19,7 +19,12 @@ local DARK_BORDER_WIDTH = 2
 local GRID_CELL_SIZE = 10
 local GRID_MARGIN = 5
 
-local MARGIN_WIDTH = 160
+local PAGE_MARGIN_TOP = 60
+local PAGE_MARGIN_RIGHT = 160
+local PAGE_MARGIN_BOTTOM = 260
+local PAGE_MARGIN_LEFT = 160
+
+local LEGEND_MARGIN_WIDTH = 20
 
 local function _createIconImage(icon_index, color)
   local icon = icons[icon_index]
@@ -79,9 +84,11 @@ local function tiles()
 
       if colorsMapping[pixel] ~= nil then
         tile.color = colorsMapping[pixel].stitch.color
+        tile.stitchRef = colorsMapping[pixel].stitch.ref
         tile.iconIndex = colorsMapping[pixel].iconIndex
       else
         tile.color = colors.WHITE
+        tile.stitchRef = nil
         tile.iconIndex = nil
       end
 
@@ -110,33 +117,112 @@ local function tiles()
 
 end
 
+local LEGEND_SLOT_WIDTH = 200
+local LEGEND_SLOT_HEIGHT = 32
+
+local function legendSlotImage(iconIndex, count, color, ref)
+  local legendSlotImage = Image { width=LEGEND_SLOT_WIDTH, height=LEGEND_SLOT_HEIGHT }
+  local colorOutlineImage = Image { width=TILE_SIZE, height=TILE_SIZE }
+  local iconOutlineImage = Image { width=TILE_SIZE, height=TILE_SIZE }
+
+  -- legendSlotImage:clear(Rectangle(0, 0, legendSlotImage.width, legendSlotImage.height), colors.LIGHT_GREY)
+
+  colorOutlineImage:clear(Rectangle(0, 0, colorOutlineImage.width, colorOutlineImage.height), colors.DARK_GREY)
+  colorOutlineImage:clear(Rectangle(DARK_BORDER_WIDTH, DARK_BORDER_WIDTH, colorOutlineImage.width - DARK_BORDER_WIDTH * 2, colorOutlineImage.height - DARK_BORDER_WIDTH * 2), color)
+
+  iconOutlineImage:clear(Rectangle(0, 0, iconOutlineImage.width, iconOutlineImage.height), colors.DARK_GREY)
+  iconOutlineImage:clear(Rectangle(DARK_BORDER_WIDTH, DARK_BORDER_WIDTH, iconOutlineImage.width - DARK_BORDER_WIDTH * 2, iconOutlineImage.height - DARK_BORDER_WIDTH * 2), colors.WHITE)
+  iconOutlineImage:drawImage(iconImage(iconIndex, colors.BLACK), Point(0, 0))
+
+  local verticalOffset = (LEGEND_SLOT_HEIGHT - TILE_SIZE) // 2
+  local horizontalOffset = verticalOffset
+
+  legendSlotImage:drawImage(colorOutlineImage, Point(horizontalOffset, verticalOffset))
+
+  horizontalOffset = horizontalOffset + colorOutlineImage.width
+
+  legendSlotImage:drawImage(iconOutlineImage,  Point(horizontalOffset, verticalOffset))
+
+  horizontalOffset = horizontalOffset + iconOutlineImage.width + TILE_SIZE // 2
+
+  legendSlotImage:drawImage(font.textImage('x' .. count .. ' DMC ' .. ref, colors.BLACK), Point(horizontalOffset, verticalOffset))
+
+  return legendSlotImage
+end
+
+local function legendImage(width, height)
+  local outLineImage = Image { width=width, height=height }
+  local contentImage = Image { width=width - DARK_BORDER_WIDTH * 2, height=height  - DARK_BORDER_WIDTH * 2}
+  local slots = {}
+
+  for tile in tiles() do
+    if tile.iconIndex ~= nil then
+      if slots[tile.stitchRef] == nil then
+        slots[tile.stitchRef] = {
+          count = 0,
+          color = tile.color,
+          iconIndex = tile.iconIndex
+        }
+      end
+
+      slots[tile.stitchRef].count = slots[tile.stitchRef].count + 1
+    end
+  end
+
+  outLineImage:clear(Rectangle(0, 0, width, height), colors.DARK_GREY)
+  contentImage:clear(Rectangle(0, 0, contentImage.width, contentImage.height), colors.WHITE)
+
+
+  local verticalOffset = 0
+  local horizontalOffset = 0
+
+  for stitchRef, slot in pairs(slots) do
+    contentImage:drawImage(legendSlotImage(slot.iconIndex, slot.count, slot.color, stitchRef), Point(horizontalOffset, verticalOffset))
+    verticalOffset = verticalOffset + LEGEND_SLOT_HEIGHT
+
+    if verticalOffset + LEGEND_SLOT_HEIGHT > contentImage.height then
+      verticalOffset = 0
+      horizontalOffset = horizontalOffset + LEGEND_SLOT_WIDTH
+    end
+  end
+
+
+  outLineImage:drawImage(contentImage, Point(DARK_BORDER_WIDTH, DARK_BORDER_WIDTH))
+
+  return outLineImage
+end
+
 
 local function writePage(filePath, inputImage)
-  local pageWidth = inputImage.width + MARGIN_WIDTH * 2
-  local pageHeight = inputImage.height + MARGIN_WIDTH * 2
+  local pageWidth = inputImage.width + PAGE_MARGIN_LEFT + PAGE_MARGIN_RIGHT
+  local pageHeight = inputImage.height + PAGE_MARGIN_TOP + PAGE_MARGIN_BOTTOM
   local pageImage = Image(pageWidth, pageHeight)
 
   local gridCols = app.image.width // GRID_CELL_SIZE
   local gridRows = app.image.height // GRID_CELL_SIZE
 
   pageImage:clear(Rectangle(0, 0, pageWidth, pageHeight), colors.WHITE)
-  pageImage:clear(Rectangle(MARGIN_WIDTH, MARGIN_WIDTH, inputImage.width + DARK_BORDER_WIDTH, inputImage.height + DARK_BORDER_WIDTH), colors.DARK_GREY)
+  pageImage:clear(Rectangle(PAGE_MARGIN_LEFT, PAGE_MARGIN_TOP, inputImage.width + DARK_BORDER_WIDTH, inputImage.height + DARK_BORDER_WIDTH), colors.DARK_GREY)
 
   for i = 1, gridCols do
     local textImg = font.textImage(tostring(i * GRID_CELL_SIZE), colors.BLACK)
 
-    pageImage:drawImage(textImg, Point(MARGIN_WIDTH + TILE_SIZE * i * GRID_CELL_SIZE - textImg.width / 2, MARGIN_WIDTH - textImg.height - GRID_MARGIN))
-    pageImage:drawImage(textImg, Point(MARGIN_WIDTH + TILE_SIZE * i * GRID_CELL_SIZE - textImg.width / 2, MARGIN_WIDTH + inputImage.height + GRID_MARGIN))
+    pageImage:drawImage(textImg, Point(PAGE_MARGIN_LEFT + TILE_SIZE * i * GRID_CELL_SIZE - textImg.width / 2, PAGE_MARGIN_TOP - textImg.height - GRID_MARGIN))
+    pageImage:drawImage(textImg, Point(PAGE_MARGIN_LEFT + TILE_SIZE * i * GRID_CELL_SIZE - textImg.width / 2, PAGE_MARGIN_TOP + inputImage.height + GRID_MARGIN))
   end
 
   for i = 1, gridRows do
     local textImg = font.textImage(tostring(i * GRID_CELL_SIZE), colors.BLACK)
 
-    pageImage:drawImage(textImg, Point(MARGIN_WIDTH - textImg.width - GRID_MARGIN, MARGIN_WIDTH + TILE_SIZE * i * GRID_CELL_SIZE - textImg.height / 2))
-    pageImage:drawImage(textImg, Point(MARGIN_WIDTH + inputImage.width + GRID_MARGIN, MARGIN_WIDTH + TILE_SIZE * i * GRID_CELL_SIZE - textImg.height / 2))
+    pageImage:drawImage(textImg, Point(PAGE_MARGIN_LEFT - textImg.width - GRID_MARGIN, PAGE_MARGIN_TOP + TILE_SIZE * i * GRID_CELL_SIZE - textImg.height / 2))
+    pageImage:drawImage(textImg, Point(PAGE_MARGIN_LEFT + inputImage.width + GRID_MARGIN, PAGE_MARGIN_TOP + TILE_SIZE * i * GRID_CELL_SIZE - textImg.height / 2))
   end
 
-  pageImage:drawImage(inputImage, Point(MARGIN_WIDTH, MARGIN_WIDTH))
+  pageImage:drawImage(inputImage, Point(PAGE_MARGIN_LEFT, PAGE_MARGIN_TOP))
+
+
+  pageImage:drawImage(legendImage(inputImage.width, PAGE_MARGIN_BOTTOM - LEGEND_MARGIN_WIDTH * 2), Point(PAGE_MARGIN_LEFT, pageHeight - PAGE_MARGIN_BOTTOM + LEGEND_MARGIN_WIDTH))
+
   pageImage:saveAs(filePath)
 end
 

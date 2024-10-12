@@ -70,8 +70,7 @@ class FontModule(ImageModule):
         draw = ImageDraw.Draw(image)
         draw.rectangle([(0, 0), (width, height)], fill=(255, 255, 255, 255))
         draw.text((-left, -top), self.char, font=font, fill=(0, 0, 0, 255))
-        null_pixel = image.getpixel((0, 0))
-        self.pixels = [[0 if image.getpixel((x, y)) == null_pixel else 1 for x in range(image.width)] for y in range(image.height)]
+        self.pixels = [[image.getpixel((x, y))[0] for x in range(image.width)] for y in range(image.height)]
 
 
 module_mapping = {}

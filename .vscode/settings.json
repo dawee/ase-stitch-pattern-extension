@@ -10,5 +10,6 @@
     "Rectangle",
     "Color"
   ],
-  "Lua.runtime.version": "Lua 5.3"
+  "Lua.runtime.version": "Lua 5.3",
+  "lua.targetVersion": "5.3"
 }
