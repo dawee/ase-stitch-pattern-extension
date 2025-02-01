@@ -1,4 +1,5 @@
 import os
+from zipfile import ZipFile
 from PIL import Image, ImageFont, ImageDraw
 from luaparser import ast
 
@@ -102,11 +103,15 @@ def resolve_module(expression: str):
     return module_mapping[expression]
 
 
-main_module = resolve_module('aspe.init')
+main_module = resolve_module('aspe.plugin')
 bundler_header = None
 
 with open("bundler_header.lua") as bundler_header_file:
     bundler_header = bundler_header_file.read()
 
-with open("C:\\Users\\david\\AppData\\Roaming\\Aseprite\\scripts\\aspe.lua", "w") as output:
+with open("dist/aspe.lua", "w") as output:
     output.writelines([bundler_header] + [f"{module.to_scoped_source()}\n" for module in module_mapping.values()] + [f"__require__('{main_module.file_name}')"])
+
+with ZipFile('stitch-patterns-exporter.aseprite-extension', 'w') as myzip:
+    myzip.write('dist/package.json')
+    myzip.write('dist/aspe.lua')

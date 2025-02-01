@@ -1,0 +1,21 @@
+{
+  "name": "aspe",
+  "displayName": "Stitch patterns exporter",
+  "description": "Export stiches pattern from pixel art image",
+  "version": "0.1",
+  "author": {
+    "name": "dawee"
+  },
+  "contributors": [],
+  "license": "MIT",
+  "categories": [
+    "Export"
+  ],
+  "contributes": {
+    "scripts": [
+      {
+        "path": "./aspe.lua"
+      }
+    ]
+  }
+}
