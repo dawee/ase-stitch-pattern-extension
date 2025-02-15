@@ -60,6 +60,7 @@ local topBorderImage = memoize.memoize(_createTopBorderImage)
 local function tiles()
   local uniqueColorsCount = 0
   local colorsMapping = {}
+  local stitchesMapping = {}
   local next = app.image:pixels()
 
   return function ()
@@ -71,11 +72,23 @@ local function tiles()
       local originalColor = colors.pixelToColor(pixel)
 
       if colorsMapping[pixel] == nil and originalColor.alpha > 0 then
-        uniqueColorsCount = uniqueColorsCount + 1
-        colorsMapping[pixel] = {
-          iconIndex = uniqueColorsCount,
-          stitch = colors.findClosestStitchToPixel(pixel)
-        }
+        local stitch = colors.findClosestStitchToPixel(pixel)
+
+        if stitchesMapping[stitch.ref] ~= nil then
+          colorsMapping[pixel] = {
+            iconIndex = stitchesMapping[stitch.ref],
+            stitch = stitch
+          }
+        else
+          uniqueColorsCount = uniqueColorsCount + 1
+
+          colorsMapping[pixel] = {
+            iconIndex = uniqueColorsCount,
+            stitch = stitch
+          }
+
+          stitchesMapping[stitch.ref] = uniqueColorsCount
+        end
       end
 
       if colorsMapping[pixel] ~= nil then
@@ -120,8 +133,6 @@ local function legendSlotImage(iconIndex, count, color, ref)
   local legendSlotImage = Image { width=LEGEND_SLOT_WIDTH, height=LEGEND_SLOT_HEIGHT }
   local colorOutlineImage = Image { width=TILE_SIZE, height=TILE_SIZE }
   local iconOutlineImage = Image { width=TILE_SIZE, height=TILE_SIZE }
-
-  -- legendSlotImage:clear(Rectangle(0, 0, legendSlotImage.width, legendSlotImage.height), colors.LIGHT_GREY)
 
   colorOutlineImage:clear(Rectangle(0, 0, colorOutlineImage.width, colorOutlineImage.height), colors.DARK_GREY)
   colorOutlineImage:clear(Rectangle(DARK_BORDER_WIDTH, DARK_BORDER_WIDTH, colorOutlineImage.width - DARK_BORDER_WIDTH * 2, colorOutlineImage.height - DARK_BORDER_WIDTH * 2), color)
